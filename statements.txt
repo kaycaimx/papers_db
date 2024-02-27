@@ -1,0 +1,208 @@
+CREATE TABLE "Papers" (
+	"pid"	INTEGER,
+	"title"	TEXT NOT NULL,
+	"status"	TEXT DEFAULT NULL,
+	PRIMARY KEY("pid" AUTOINCREMENT)
+);
+
+
+CREATE TABLE "Authors" (
+	"email"	TEXT,
+	"name"	TEXT NOT NULL,
+	PRIMARY KEY("email")
+);
+
+
+CREATE TABLE "Research_Areas" (
+	"area_name"	TEXT NOT NULL,
+	PRIMARY KEY("area_name")
+)
+
+
+CREATE TABLE "Author_Writes_Paper" (
+	"author_email"	TEXT,
+	"paper_id"	INTEGER,
+	FOREIGN KEY("paper_id") REFERENCES "Papers"("pid"),
+	FOREIGN KEY("author_email") REFERENCES "Authors"("email"),
+	PRIMARY KEY("author_email","paper_id")
+);
+
+
+CREATE TABLE "Paper_Research_Area" (
+	"paper_id"	INTEGER,
+	"area_name"	TEXT,
+	FOREIGN KEY("paper_id") REFERENCES "Papers"("pid"),
+	FOREIGN KEY("area_name") REFERENCES "Research_Areas"("area_name"),
+	PRIMARY KEY("paper_id")
+)
+
+
+CREATE TABLE "Author_Research_Area" (
+	"author_email"	TEXT,
+	"area_name"	TEXT,
+	FOREIGN KEY("area_name") REFERENCES "Research_Areas"("area_name"),
+	FOREIGN KEY("author_email") REFERENCES "Authors"("email"),
+	PRIMARY KEY("author_email","area_name")
+)
+
+
+CREATE TABLE "Author_Reviews_Paper" (
+	"paper_id"	INTEGER,
+	"reviewer_email"	TEXT,
+	"originality_score"	INTEGER NOT NULL,
+	"correctness_score"	INTEGER NOT NULL,
+	"fitness_score"	INTEGER NOT NULL,
+	"average"	NUMERIC(4,3) DEFAULT NULL,
+	FOREIGN KEY("paper_id") REFERENCES "Papers"("pid"),
+	FOREIGN KEY("reviewer_email") REFERENCES "Authors"("email"),	
+	PRIMARY KEY("paper_id","reviewer_email")
+)
+
+
+DROP TRIGGER IF EXISTS validate_email_before_insert_authors;
+CREATE TRIGGER validate_email_before_insert_authors 
+BEFORE INSERT ON Authors
+BEGIN
+   SELECT
+      CASE
+         WHEN NEW.email NOT LIKE '%_@__%.__%' THEN
+            RAISE (ABORT,'Invalid email address')
+      END;
+END
+
+
+DROP TRIGGER IF EXISTS check_scores_before_insert;
+CREATE TRIGGER check_scores_before_insert
+BEFORE INSERT ON Author_Reviews_Paper
+WHEN NEW.originality_score < 0 OR NEW.originality_score > 5
+   OR NEW.correctness_score < 0 OR NEW.correctness_score > 5
+   OR NEW.fitness_score < 0 OR NEW.fitness_score > 5
+BEGIN
+    SELECT RAISE(ABORT, 'Invalid score values. Scores must be between 0 and 5');
+END;
+
+
+DROP TRIGGER IF EXISTS update_average_after_insert_review;
+CREATE TRIGGER update_average_after_insert_review
+AFTER INSERT ON Author_Reviews_Paper
+WHEN NEW.average IS NULL
+BEGIN
+    UPDATE Author_Reviews_Paper
+    SET average = ROUND((NEW.originality_score + NEW.correctness_score + NEW.fitness_score) / 3.0, 4)
+    WHERE paper_id = NEW.paper_id AND reviewer_email = NEW.reviewer_email;
+END;
+
+
+
+--Data population
+
+INSERT INTO Authors VALUES
+('a.dumbledore@hogwarts.uk', 'Albus Dumbledore'),
+('s.snape@hogwarts.uk', 'Severus Snape'),
+('m.mcgonagall@hogwarts.uk', 'Minerva McGonagall'),
+('h.potter@gryffindor.com', 'Harry Potter'),
+('h.granger@gryffindor.com', 'Hermione Granger'),
+('d.malfoy@slytherin.com', 'Draco Malfoy'),
+('c.chang@ravenclaw.com', 'Cho Chang');
+
+
+INSERT INTO Papers (title) VALUES
+('The Efficacy of Polyjuice Potion in Mimicking Magical Abilities'),
+('Exploring the Art of Wandless Magic: A Comprehensive Study'),
+('Metamorphosis Mastery: Unraveling the Secrets of Animagus Transformation'),
+('Celestial Cartography: Mapping Magical Constellations'),
+('Mandrakes and their Medicinal Magic: Advances in Herbology'),
+('Warding Against Dark Creatures: Defensive Strategies for Magical Beings'),
+('The Unseen Art: Invisibility Cloaks and their Magical Properties'),
+('The Essence of Patronus Charm: Confronting Dementors with Light'),
+('The Enchanted Greenhouses: A Study on Magical Plants and Their Properties'),
+('Casting Shadows: Investigating the Dark Arts and their Countermeasures'),
+('Bubotuber Pus Elixir: An Experimental Approach to Healing Potions'),
+('Amortentia Analysis: Unraveling the Complexities of the Love Potion'),
+('Draught of Living Death: Countermeasures and Antidotes');
+
+
+INSERT INTO Research_Areas VALUES
+('potions'), 
+('charms'), 
+('transfiguration'),
+('astronomy'),
+('herbology'),
+('defence against dark arts');
+
+
+INSERT INTO Author_Writes_Paper VALUES
+('h.potter@gryffindor.com', 1),
+('h.granger@gryffindor.com', 1),
+('a.dumbledore@hogwarts.uk', 2),
+('m.mcgonagall@hogwarts.uk', 2),
+('s.snape@hogwarts.uk', 2),
+('m.mcgonagall@hogwarts.uk', 3),
+('d.malfoy@slytherin.com', 4),
+('c.chang@ravenclaw.com', 5),
+('h.potter@gryffindor.com', 6),
+('a.dumbledore@hogwarts.uk', 6),
+('h.potter@gryffindor.com', 7),
+('h.granger@gryffindor.com', 8),
+('h.granger@gryffindor.com',9),
+('a.dumbledore@hogwarts.uk', 10),
+('s.snape@hogwarts.uk', 11),
+('d.malfoy@slytherin.com', 12),
+('h.granger@gryffindor.com', 12),
+('a.dumbledore@hogwarts.uk', 13),
+('s.snape@hogwarts.uk', 13);
+
+
+INSERT INTO Author_Research_Area VALUES
+('a.dumbledore@hogwarts.uk', 'potions'),
+('a.dumbledore@hogwarts.uk', 'charms'),
+('a.dumbledore@hogwarts.uk', 'transfiguration'),
+('a.dumbledore@hogwarts.uk', 'defence against dark arts'),
+('m.mcgonagall@hogwarts.uk', 'transfiguration'),
+('m.mcgonagall@hogwarts.uk', 'charms'),
+('s.snape@hogwarts.uk', 'potions'),
+('s.snape@hogwarts.uk', 'defence against dark arts'),
+('h.potter@gryffindor.com', 'defence against dark arts'),
+('h.granger@gryffindor.com', 'charms'),
+('h.granger@gryffindor.com', 'potions'),
+('d.malfoy@slytherin.com', 'potions');
+
+
+INSERT INTO Paper_Research_Area VALUES
+(1, 'potions'),
+(2, 'charms'),
+(3, 'transfiguration'),
+(4, 'astronomy'),
+(5, 'herbology'),
+(6, 'defence against dark arts'),
+(7, 'charms'),
+(8, 'charms'),
+(9, 'herbology'),
+(10, 'defence against dark arts'),
+(11, 'potions'),
+(12, 'potions'),
+(13, 'potions');
+
+
+INSERT INTO Author_Reviews_Paper (paper_id, reviewer_email, originality_score, correctness_score, fitness_score) VALUES
+(1, 's.snape@hogwarts.uk', 1, 2, 2),
+(1, 'm.mcgonagall@hogwarts.uk', 4, 4, 4),
+(2, 'h.granger@gryffindor.com', 5, 5, 5),
+(4, 's.snape@hogwarts.uk', 4, 5, 5),
+(5, 's.snape@hogwarts.uk', 2, 3, 3),
+(5, 'm.mcgonagall@hogwarts.uk', 4, 4, 4),
+(6, 'm.mcgonagall@hogwarts.uk', 4, 4, 5),
+(6, 's.snape@hogwarts.uk', 4, 4, 4),
+(7, 'a.dumbledore@hogwarts.uk', 4, 4, 4),
+(7, 'm.mcgonagall@hogwarts.uk', 3, 4, 4),
+(8, 'a.dumbledore@hogwarts.uk', 4, 5, 5),
+(8, 'm.mcgonagall@hogwarts.uk', 4, 4, 5),
+(10, 'm.mcgonagall@hogwarts.uk', 5, 4, 5),
+(10, 'h.granger@gryffindor.com', 5, 5, 5),
+(10, 'h.potter@gryffindor.com', 5, 5, 5),
+(11, 'a.dumbledore@hogwarts.uk', 5, 5, 5),
+(12, 's.snape@hogwarts.uk', 4, 4, 5),
+(12, 'a.dumbledore@hogwarts.uk', 5, 5, 5),
+(13, 'm.mcgonagall@hogwarts.uk', 5, 5, 4),
+(13, 'h.granger@gryffindor.com', 5, 5, 5);
+
